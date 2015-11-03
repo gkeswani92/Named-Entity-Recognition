@@ -4,7 +4,7 @@ Created on Nov 2, 2015
 @author: gaurav
 '''
 
-from DataProcessing.Utilities import loadFile, getDataFromFile, dir_path, training_file, test_file
+from DataProcessing.Utilities import loadFile, getDataFromFile, dir_path, training_file, test_file, pprint
 from pandas.compat import OrderedDefaultdict
 
 def parseTrainingData(training_data):
@@ -35,8 +35,10 @@ def processTrainingData(context, pos, ner):
     training_data = OrderedDefaultdict(dict);
     
     for i in xrange(len(context)):
-        training_data[context[i]] = {'POS' : pos[i], 'NE' : ner[i]}
+        #if ner[i] != "": Reduced the accuracy down to 34%
+            training_data[context[i]] = {'POS' : pos[i], 'NE' : ner[i]}
     
+    pprint(training_data)
     return training_data
 
 def getTrainingData():
@@ -56,7 +58,7 @@ def parseTestData(test_data):
     '''
     context = []
     pos     = []
-    index     = []
+    index   = []
     
     #1st line is context, 2nd is POS and 3rd is index
     for i in xrange(len(test_data)):
