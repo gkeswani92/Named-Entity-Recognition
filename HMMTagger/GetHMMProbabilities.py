@@ -35,6 +35,9 @@ def getStateProbabilities(ne_list):
     '''
     For each state (named entity), compute the probability that it begins a sentence (init_probs),
     and the probability that it transitions to another named_entity (trans_probs)
+
+    Should consider merging B-* and I-* tokens
+    Should add some small probability mass for unseen state transitions
     '''
 
     # Fill up the dictionaries with counts
@@ -58,12 +61,4 @@ def getStateProbabilities(ne_list):
         for ne2 in trans_probs[ne1]:
             trans_probs[ne1][ne2] /= total_count
 
-
-def main():
-    pos_list, ne_list = getTrainingData(HMM=True)
-    emission_probs = getEmissionProbabilities(pos_list, ne_list)
-    state_init_probs, state_trans_probs = getStateProbabilities(ne_list)
-    return
-
-if __name__ == '__main__':
-    main()
+    return init_probs, trans_probs
