@@ -2,14 +2,45 @@ __author__ = 'Jonathan Simon'
 
 from DataProcessing.LoadData import getTrainingData, getTestData
 from DataProcessing.Utilities import savePredictionsToCSV
-from HMMTagger.GetHMMProbabilities import getEmissionProbabilities, getStateProbabilities
+from GetHMMProbabilities import getEmissionProbabilities, getStateProbabilities
+
+def Viterbi(emission_probs, state_init_probs, state_trans_probs, test_subseq):
+    '''
+    For now we're ignoring the <UNK> tokens that were inserted
+    If we lookup an emission that doesn't exist, it will have probability 0, since we're using a Counter
+    '''
+    # Initialize paths and probabilities
+    path_dict = dict((state, [state]) for state in state_init_probs.keys())
+    prev_probs = {}
+    for state in state_init_probs.keys():
+        prev_probs[state] = state_init_probs[state] * emission_probs[state][test_subseq[0]]
+
+    # Iterate over the sentence
+    all_states = set(state2 for state1 in state_trans_probs for state2 in state_trans_probs[state1])
+    for emission in test_subseq[1:]:
+        new_path_dict = {}
+        curr_state_probs = {}
+        for prev_state in path_dict:
+            temp_state_probs = {}
+            for curr_state in all_states:
+                temp_state_probs[curr_state] = prev_probs[prev_state] * state_trans_probs[prev_state][curr_state] * \
+                                               emission_probs[curr_state][emission]
+            max_prob = max(temp_state_probs.values())
+            max_idx = temp_state_probs.values().index(max_prob)
+            max_state = temp_state_probs.keys()[max_idx]
+            curr_state_probs[max_state] = max_prob
+            new_path_dict[max_state] = path_dict[prev_state] + [max_state]
+        prev_probs = curr_state_probs.copy()
+        path_dict = new_path_dict.copy()
+
+    # Identify overall most probable path
+    overall_max_prob = max(prev_probs.values())
+    overall_max_idx = prev_probs.values().index(overall_max_prob)
+    overall_max_state = prev_probs.keys()[overall_max_idx]
+    return path_dict[overall_max_state]
 
 
-def Viterbi(test_subseq, emission_probs, state_init_probs, state_trans_probs):
-    pass
-
-
-def getTestPreds(train_pos_list, train_ne_list, test_pos_list, test_idx_list):
+def getTestPreds(train_pos_list, train_ne_list, test_pos_list):
     emission_probs = getEmissionProbabilities(train_pos_list, train_ne_list)
     state_init_probs, state_trans_probs = getStateProbabilities(train_ne_list)
     pred_ne_list = []
@@ -40,8 +71,8 @@ def formatTestPreds(preds, inds):
                     ne_tag = preds[i][word_idx].split('-')[1]
             else:  # if inside a named entity
                 if preds[i][word_idx][0] != 'I':  # if past the end of a named entity
-                    ne_end = inds[i][word_idx]
-                    formatted_preds[ne_tag] = "{0}-{1}".format(ne_start, ne_end)
+                    ne_end = inds[i][word_idx-1]
+                    formatted_preds[ne_tag].append("{0}-{1}".format(ne_start, ne_end))
                     if preds[i][word_idx][0] == 'B':  # start of new named entity
                         ne_start = word_idx
                         ne_tag = preds[i][word_idx].split('-')[1]
@@ -55,8 +86,8 @@ def main():
     train_word_list, train_pos_list, train_ne_list = getTrainingData(HMM=True)
     test_word_list, test_pos_list, test_idx_list = getTestData(HMM=True)
 
-    tag_seq_preds = getTestPreds(train_pos_list, train_ne_list, test_pos_list, test_idx_list)
-    formatted_preds = formatTestPreds(tag_seq_preds)
+    tag_seq_preds = getTestPreds(train_pos_list, train_ne_list, test_pos_list)
+    formatted_preds = formatTestPreds(tag_seq_preds, test_idx_list)
     savePredictionsToCSV(formatted_preds)
 
 if __name__ == '__main__':

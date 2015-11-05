@@ -110,7 +110,7 @@ def parseTestDataHMM(test_data):
         elif i % 3 == 1:
             pos.append(test_data[i].strip().split('\t'))
         else:
-            index.append(test_data[i].strip().split('\t'))
+            index.append(test_data[i].strip().split(' '))  # this uses spaces, not tabs...
 
     return context, pos, index
 
