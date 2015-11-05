@@ -83,8 +83,8 @@ def formatTestPreds(preds, inds):
 
 
 def main():
-    train_word_list, train_pos_list, train_ne_list = getTrainingData(HMM=True)
-    test_word_list, test_pos_list, test_idx_list = getTestData(HMM=True)
+    _, train_pos_list, train_ne_list = getTrainingData(HMM=True)
+    _, test_pos_list, test_idx_list = getTestData(HMM=True)
 
     tag_seq_preds = getTestPreds(train_pos_list, train_ne_list, test_pos_list)
     formatted_preds = formatTestPreds(tag_seq_preds, test_idx_list)
