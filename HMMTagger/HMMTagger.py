@@ -3,6 +3,7 @@ __author__ = 'Jonathan Simon'
 from DataProcessing.LoadData import getTrainingData, getTestData
 from DataProcessing.Utilities import savePredictionsToCSV
 from GetHMMProbabilities import getEmissionProbabilities, getStateProbabilities
+import numpy as np
 
 def Viterbi(emission_probs, state_init_probs, state_trans_probs, test_subseq):
     '''
@@ -20,22 +21,21 @@ def Viterbi(emission_probs, state_init_probs, state_trans_probs, test_subseq):
     for emission in test_subseq[1:]:
         new_path_dict = {}
         curr_state_probs = {}
-        for prev_state in path_dict:
+        for curr_state in all_states:
             temp_state_probs = {}
-            for curr_state in all_states:
-                temp_state_probs[curr_state] = prev_probs[prev_state] * state_trans_probs[prev_state][curr_state] * \
+            for prev_state in path_dict:
+                temp_state_probs[prev_state] = prev_probs[prev_state] * state_trans_probs[prev_state][curr_state] * \
                                                emission_probs[curr_state][emission]
-            max_prob = max(temp_state_probs.values())
-            max_idx = temp_state_probs.values().index(max_prob)
+            max_idx = np.argmax(temp_state_probs.values())
+            max_prob = temp_state_probs.values()[max_idx]
             max_state = temp_state_probs.keys()[max_idx]
-            curr_state_probs[max_state] = max_prob
-            new_path_dict[max_state] = path_dict[prev_state] + [max_state]
+            curr_state_probs[curr_state] = max_prob
+            new_path_dict[curr_state] = path_dict[max_state] + [curr_state]
         prev_probs = curr_state_probs.copy()
         path_dict = new_path_dict.copy()
 
     # Identify overall most probable path
-    overall_max_prob = max(prev_probs.values())
-    overall_max_idx = prev_probs.values().index(overall_max_prob)
+    overall_max_idx = np.argmax(prev_probs.values())
     overall_max_state = prev_probs.keys()[overall_max_idx]
     return path_dict[overall_max_state]
 
