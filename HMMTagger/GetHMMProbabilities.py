@@ -23,7 +23,7 @@ def getEmissionProbabilities(pos_list, ne_list):
     # Add the <UNK> token, and normalize the counts
     # NOTE: Should be smarter about adding this "unknown" probability mass
     for ne in emission_probs:
-        emission_probs[ne]['<UNK>'] = 1
+        # emission_probs[ne]['<UNK>'] = 1
         total_count = 1.0*sum(emission_probs[ne].values())
         for pos in emission_probs[ne]:
             emission_probs[ne][pos] /= total_count

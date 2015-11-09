@@ -26,17 +26,21 @@ def Viterbi(emission_probs, state_init_probs, state_trans_probs, test_subseq):
             for prev_state in path_dict:
                 temp_state_probs[prev_state] = prev_probs[prev_state] * state_trans_probs[prev_state][curr_state] * \
                                                emission_probs[curr_state][emission]
+
             max_idx = np.argmax(temp_state_probs.values())
             max_prob = temp_state_probs.values()[max_idx]
             max_state = temp_state_probs.keys()[max_idx]
+
             curr_state_probs[curr_state] = max_prob
             new_path_dict[curr_state] = path_dict[max_state] + [curr_state]
+
         prev_probs = curr_state_probs.copy()
         path_dict = new_path_dict.copy()
 
     # Identify overall most probable path
     overall_max_idx = np.argmax(prev_probs.values())
     overall_max_state = prev_probs.keys()[overall_max_idx]
+
     return path_dict[overall_max_state]
 
 
