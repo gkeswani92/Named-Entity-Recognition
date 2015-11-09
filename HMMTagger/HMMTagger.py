@@ -5,7 +5,7 @@ from DataProcessing.Utilities import savePredictionsToCSV
 from GetHMMProbabilities import getEmissionProbabilities, getStateProbabilities
 import numpy as np
 
-def Viterbi(emission_probs, state_init_probs, state_trans_probs, test_subseq):
+def Viterbi(emission_probs, state_init_probs, state_trans_probs, test_subseq, smooth):
     '''
     For now we're ignoring the <UNK> tokens that were inserted
     If we lookup an emission that doesn't exist, it will have probability 0, since we're using a Counter
@@ -24,8 +24,12 @@ def Viterbi(emission_probs, state_init_probs, state_trans_probs, test_subseq):
         for curr_state in all_states:
             temp_state_probs = {}
             for prev_state in path_dict:
-                temp_state_probs[prev_state] = prev_probs[prev_state] * state_trans_probs[prev_state][curr_state] * \
-                                               emission_probs[curr_state][emission]
+                if emission not in emission_probs[curr_state] and smooth == 'Laplacian':
+                    temp_state_probs[prev_state] = prev_probs[prev_state] * state_trans_probs[prev_state][curr_state] * \
+                                                   emission_probs[curr_state]['<UNK>']
+                else:
+                    temp_state_probs[prev_state] = prev_probs[prev_state] * state_trans_probs[prev_state][curr_state] * \
+                                                   emission_probs[curr_state][emission]
 
             max_idx = np.argmax(temp_state_probs.values())
             max_prob = temp_state_probs.values()[max_idx]
@@ -44,12 +48,12 @@ def Viterbi(emission_probs, state_init_probs, state_trans_probs, test_subseq):
     return path_dict[overall_max_state]
 
 
-def getTestPreds(train_pos_list, train_ne_list, test_pos_list):
-    emission_probs = getEmissionProbabilities(train_pos_list, train_ne_list)
+def getTestPreds(train_obs_list, train_ne_list, test_obs_list, smooth):
+    emission_probs = getEmissionProbabilities(train_obs_list, train_ne_list, smooth)
     state_init_probs, state_trans_probs = getStateProbabilities(train_ne_list)
     pred_ne_list = []
-    for i in xrange(len(test_pos_list)):
-        predicted_states = Viterbi(emission_probs, state_init_probs, state_trans_probs, test_pos_list[i])
+    for i in xrange(len(test_obs_list)):
+        predicted_states = Viterbi(emission_probs, state_init_probs, state_trans_probs, test_obs_list[i], smooth)
         pred_ne_list.append(predicted_states)
     return pred_ne_list
 
@@ -87,10 +91,11 @@ def formatTestPreds(preds, inds):
 
 
 def main():
-    _, train_pos_list, train_ne_list = getTrainingData(HMM=True)
-    _, test_pos_list, test_idx_list = getTestData(HMM=True)
+    train_word_list, train_pos_list, train_ne_list = getTrainingData(HMM=True)
+    test_word_list, test_pos_list, test_idx_list = getTestData(HMM=True)
 
-    tag_seq_preds = getTestPreds(train_pos_list, train_ne_list, test_pos_list)
+    # tag_seq_preds = getTestPreds(train_pos_list, train_ne_list, test_pos_list)
+    tag_seq_preds = getTestPreds(train_word_list, train_ne_list, test_word_list, smooth='Laplacian')
     formatted_preds = formatTestPreds(tag_seq_preds, test_idx_list)
     savePredictionsToCSV(formatted_preds)
 

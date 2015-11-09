@@ -1,9 +1,10 @@
 __author__ = 'Jonathan Simon'
 
 from collections import defaultdict, Counter
+from numpy.random import choice
 
 
-def getEmissionProbabilities(pos_list, ne_list):
+def getEmissionProbabilities(obs_list, ne_list, smooth=None):
     '''
     For each named entity, need to compute the emmission probabilities for each part of speech
     Because some parts of speech never occur within a named entity type, we also need to include
@@ -17,16 +18,17 @@ def getEmissionProbabilities(pos_list, ne_list):
     for i in xrange(len(ne_list)): # for each sentence in the dataset
         for j in xrange(len(ne_list[i])): # for each word in the sentence
             this_ne = ne_list[i][j]
-            this_pos = pos_list[i][j]
-            emission_probs[this_ne][this_pos] += 1
+            this_obs = obs_list[i][j]
+            emission_probs[this_ne][this_obs] += 1
 
     # Add the <UNK> token, and normalize the counts
     # NOTE: Should be smarter about adding this "unknown" probability mass
     for ne in emission_probs:
-        # emission_probs[ne]['<UNK>'] = 1
+        if smooth == 'Laplacian':
+            emission_probs[ne]['<UNK>'] = Counter(emission_probs[ne].values())[1]
         total_count = 1.0*sum(emission_probs[ne].values())
-        for pos in emission_probs[ne]:
-            emission_probs[ne][pos] /= total_count
+        for obs in emission_probs[ne]:
+            emission_probs[ne][obs] /= total_count
 
     return emission_probs
 
