@@ -24,7 +24,7 @@ def Viterbi(emission_probs, state_init_probs, state_trans_probs, test_subseq, sm
         for curr_state in all_states:
             temp_state_probs = {}
             for prev_state in path_dict:
-                if emission not in emission_probs[curr_state] and smooth == 'Laplacian':
+                if emission not in emission_probs[curr_state] and smooth == 'Laplacian' or smooth == 'Good-Turing':
                     temp_state_probs[prev_state] = prev_probs[prev_state] * state_trans_probs[prev_state][curr_state] * \
                                                    emission_probs[curr_state]['<UNK>']
                 else:
@@ -95,7 +95,7 @@ def main():
     test_word_list, test_pos_list, test_idx_list = getTestData(HMM=True)
 
     # tag_seq_preds = getTestPreds(train_pos_list, train_ne_list, test_pos_list)
-    tag_seq_preds = getTestPreds(train_word_list, train_ne_list, test_word_list, smooth='Laplacian')
+    tag_seq_preds = getTestPreds(train_word_list, train_ne_list, test_word_list, smooth='Good-Turing')
     formatted_preds = formatTestPreds(tag_seq_preds, test_idx_list)
     savePredictionsToCSV(formatted_preds)
 
