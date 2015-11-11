@@ -6,7 +6,7 @@ from GetHMMProbabilities import getEmissionProbabilities, getStateProbabilities
 from HandleLowFrequencyWords import getLowFrequencyWordProbabilities, findFeatureClass
 import numpy as np
 
-def Viterbi(emission_probs, state_init_probs, state_trans_probs, test_subseq, low_frequency_probabilities, smooth):
+def Viterbi(emission_probs, state_init_probs, state_trans_probs, test_subseq, low_frequency_probabilities, smooth, similarity_based, pos_subseq):
     '''
     For now we're ignoring the <UNK> tokens that were inserted
     If we lookup an emission that doesn't exist, it will have probability 0, since we're using a Counter
@@ -19,7 +19,9 @@ def Viterbi(emission_probs, state_init_probs, state_trans_probs, test_subseq, lo
 
     # Iterate over the sentence
     all_states = set(state2 for state1 in state_trans_probs for state2 in state_trans_probs[state1])
-    for emission in test_subseq[1:]:
+    # for emission in test_subseq[1:]:
+    for emission_idx in range(1, len(test_subseq)):
+        emission = test_subseq[emission_idx]
         new_path_dict = {}
         curr_state_probs = {}
         for curr_state in all_states:
@@ -34,12 +36,20 @@ def Viterbi(emission_probs, state_init_probs, state_trans_probs, test_subseq, lo
                                                         emission_probs[curr_state]['<UNK>']
                                                         
                     #Using feature classes from local context instead of smoothing
-                    else:
+                    elif similarity_based:
                         feature_class = findFeatureClass(emission)
                         current_state = curr_state if '-' not in curr_state else curr_state.split('-')[1]
                         emission_probability = low_frequency_probabilities[feature_class][current_state]
                         temp_state_probs[prev_state] = prev_probs[prev_state] * state_trans_probs[prev_state][curr_state] * \
                                                         emission_probability
+                    else:
+                        print "I'm here!"
+                        feature_class = pos_subseq[emission_idx]
+                        current_state = curr_state if '-' not in curr_state else curr_state.split('-')[1]
+                        emission_probability = low_frequency_probabilities[feature_class][current_state]
+                        temp_state_probs[prev_state] = prev_probs[prev_state] * state_trans_probs[prev_state][curr_state] * \
+                                                        emission_probability
+
                 else:
                     temp_state_probs[prev_state] = prev_probs[prev_state] * state_trans_probs[prev_state][curr_state] * \
                                                    emission_probs[curr_state][emission]
@@ -61,12 +71,12 @@ def Viterbi(emission_probs, state_init_probs, state_trans_probs, test_subseq, lo
     return path_dict[overall_max_state]
 
 
-def getTestPreds(train_obs_list, train_ne_list, test_obs_list, low_frequency_probabilities, smooth):
+def getTestPreds(train_obs_list, train_ne_list, test_obs_list, low_frequency_probabilities, smooth, similarity_based, test_pos_list):
     emission_probs = getEmissionProbabilities(train_obs_list, train_ne_list, smooth)
     state_init_probs, state_trans_probs = getStateProbabilities(train_ne_list)
     pred_ne_list = []
     for i in xrange(len(test_obs_list)):
-        predicted_states = Viterbi(emission_probs, state_init_probs, state_trans_probs, test_obs_list[i], low_frequency_probabilities, smooth)
+        predicted_states = Viterbi(emission_probs, state_init_probs, state_trans_probs, test_obs_list[i], low_frequency_probabilities, smooth, similarity_based, test_pos_list)
         pred_ne_list.append(predicted_states)
     return pred_ne_list
 
@@ -110,7 +120,7 @@ def main():
 
     # tag_seq_preds = getTestPreds(train_pos_list, train_ne_list, test_pos_list)
     #tag_seq_preds = getTestPreds(train_word_list, train_ne_list, test_word_list, low_frequency_probabilities, smooth='Good-Turing')
-    tag_seq_preds = getTestPreds(train_word_list, train_ne_list, test_word_list, low_frequency_probabilities, smooth=None)
+    tag_seq_preds = getTestPreds(train_word_list, train_ne_list, test_word_list, low_frequency_probabilities, smooth=None, similarity_based=False, test_pos_list=test_pos_list)
     formatted_preds = formatTestPreds(tag_seq_preds, test_idx_list)
     savePredictionsToCSV(formatted_preds)
 

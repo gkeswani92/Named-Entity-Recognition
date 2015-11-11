@@ -69,9 +69,10 @@ def findLowFrequencyWord(context_ner, context_pos):
     
     for key, value in context_ner.iteritems():
         #if len(value) < 3 and 'O' not in value:
-        if len(value) < 3:
-            low_frequency_ner[key] = value  
-            low_frequency_pos[key] = context_pos[key]
+        #if len(value) < 3:
+
+        low_frequency_ner[key] = value
+        low_frequency_pos[key] = context_pos[key]
     
     return low_frequency_ner, low_frequency_pos
 
