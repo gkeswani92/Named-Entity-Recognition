@@ -4,22 +4,28 @@ Created on Nov 8, 2015
 @author: gaurav
 '''
 
-from DataProcessing.Utilities import loadFile, getDataFromFile, dir_path, training_file
+from DataProcessing.Utilities import loadFile, getDataFromFile, dir_path, training_file, pprint
 from collections import defaultdict
 from copy import deepcopy
 import csv
 
-def getTrainingData():
+def getTrainingData(text_features = False):
     '''
         Loads the training data from the appropriate directory
     '''
     #Load the data present in the training file
     f = loadFile(dir_path + training_file)
     training_data = getDataFromFile(f)
-    context_ner = parseTrainingData(training_data)
-    low_frequency_ner = findLowFrequencyWord(context_ner)
-    features = findFeaturesForText(low_frequency_ner)
+    context_ner, context_pos = parseTrainingData(training_data)
+    low_frequency_ner, low_frequency_pos = findLowFrequencyWord(context_ner, context_pos)
+    
+    if text_features:
+        features = findFeaturesForText(low_frequency_ner)
+    else:
+        features = findFeaturesForPOS(low_frequency_pos, low_frequency_ner)
+        
     feature_probabilities = findProbabilityForFeatures(features)
+    #pprint(feature_probabilities)
     return feature_probabilities
     
 def parseTrainingData(training_data):
@@ -29,6 +35,7 @@ def parseTrainingData(training_data):
     '''
     context = []
     ner     = []
+    pos     = []
 
     #1st line is context, 2nd is POS and 3rd is named entity category
     for i in xrange(len(training_data)):
@@ -36,30 +43,62 @@ def parseTrainingData(training_data):
             context += training_data[i].strip().split('\t')
         elif i % 3 == 2:
             ner += training_data[i].strip().split('\t')
+        else:
+            pos += training_data[i].strip().split('\t')
 
     #Mapping of context to named entities
-    context_ner = defaultdict(list)    
+    context_ner = defaultdict(list)  
+    context_pos = defaultdict(list)
+      
     for i in xrange(len(context)):
         context_ner[context[i]].append(ner[i])
+        
+    for i in xrange(len(context)):
+        context_pos[context[i]].append(pos[i])    
 
-    return context_ner
+    return context_ner, context_pos
 
-def findLowFrequencyWord(context_ner):
+def findLowFrequencyWord(context_ner, context_pos):
     '''
         Only keeps the low frequency words i.e. words that have count 2 or less
         and that do not have the Named Entity tag O
     '''
     #Finding the low frequency context        
     low_frequency_ner = {}
-    for key, value in context_ner.iteritems():
-        if len(value) < 3 and 'O' not in value:
-            low_frequency_ner[key] = value  
+    low_frequency_pos = {}
     
-    return low_frequency_ner
+    for key, value in context_ner.iteritems():
+        #if len(value) < 3 and 'O' not in value:
+        if len(value) < 3:
+            low_frequency_ner[key] = value  
+            low_frequency_pos[key] = context_pos[key]
+    
+    return low_frequency_ner, low_frequency_pos
 
+def findFeaturesForPOS(low_frequency_pos, low_frequency_ner):
+    
+    probabilities = {"PER":0, "LOC":0, "ORG":0, "MISC":0, "O":0}
+    features = {}
+    
+    for key, value in low_frequency_pos.iteritems():
+        for pos in value:
+            if pos not in features:
+                features[pos] = deepcopy(probabilities)
+            
+            nets = low_frequency_ner[key]
+            
+            for net in nets:
+                if '-' in net:
+                    features[pos][net.split('-')[1]] += 1
+                else:
+                    features[pos][net] += 1
+     
+    pprint(features)
+    return features
+        
 def findFeaturesForText(context_ner):
     
-    probabilities = {"PER":0, "LOC":0, "ORG":0, "MISC":0}
+    probabilities = {"PER":0, "LOC":0, "ORG":0, "MISC":0, "O":0}
     features = {"upper-case": deepcopy(probabilities),
                 "digit": deepcopy(probabilities),
                 "contains-digit": deepcopy(probabilities),
@@ -136,3 +175,5 @@ def savePredictionsToCSV(low_frequency_ner):
     
 def getLowFrequencyWordProbabilities():
     return getTrainingData()
+
+getTrainingData()
