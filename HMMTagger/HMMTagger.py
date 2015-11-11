@@ -25,10 +25,15 @@ def Viterbi(emission_probs, state_init_probs, state_trans_probs, test_subseq, lo
         for curr_state in all_states:
             temp_state_probs = {}
             for prev_state in path_dict:
+                
                 if emission not in emission_probs[curr_state]:
+                    
+                    #Using the smoothed values in case emission was something we had not seen before
                     if smooth == 'Laplacian' or smooth == 'Good-Turing':
                         temp_state_probs[prev_state] = prev_probs[prev_state] * state_trans_probs[prev_state][curr_state] * \
                                                         emission_probs[curr_state]['<UNK>']
+                                                        
+                    #Using feature classes from local context instead of smoothing
                     else:
                         feature_class = findFeatureClass(emission)
                         current_state = curr_state if '-' not in curr_state else curr_state.split('-')[1]
