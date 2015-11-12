@@ -2,6 +2,7 @@ __author__ = 'Jonathan Simon'
 
 from collections import defaultdict, Counter
 from copy import deepcopy
+from itertools import product
 
 
 def applyGoodTuringSmoothing(emission_freqs, max_freq=5):
@@ -106,5 +107,44 @@ def getStateProbabilities(ne_list):
         total_count = 1.0*sum(trans_probs[ne1].values())
         for ne2 in trans_probs[ne1]:
             trans_probs[ne1][ne2] /= total_count
+
+    return init_probs, trans_probs
+
+
+def getBigramStateProbabilities(ne_list):
+    '''
+    For each state (named entity), compute the probability that it begins a sentence (init_probs),
+    and the probability that it transitions follows a particular bigram of named_entities (bigram_trans_probs),
+    where there exists an implicit <START> state preceding the very first state.
+
+    Should consider merging B-* and I-* tokens
+    Should add some small probability mass for unseen state transitions
+    '''
+
+    # Fill up the dictionaries with counts
+    init_probs = Counter()
+    trans_probs = defaultdict(Counter)
+    for i in xrange(len(ne_list)): # for each sentence in the dataset
+        init_probs[("<START>",ne_list[i][0])] += 1
+        for j in xrange(len(ne_list[i])-1): # for each word in the sentence
+            if j > 0:
+                prev_ne = ne_list[i][j-1]
+            else:
+                prev_ne = "<START>"
+            current_ne = ne_list[i][j]
+            next_ne = ne_list[i][j+1]
+            ne_bigram = (prev_ne, current_ne)
+            trans_probs[ne_bigram][next_ne] += 1
+
+    # Normalize the initial probabilities
+    total_count = 1.0*sum(init_probs.values())
+    for ne_bigram in init_probs:
+        init_probs[ne_bigram] /= total_count
+
+    # Normalize the transition probabilities
+    for ne_bigram in trans_probs:
+        total_count = 1.0*sum(trans_probs[ne_bigram].values())
+        for ne2 in trans_probs[ne_bigram]:
+            trans_probs[ne_bigram][ne2] /= total_count
 
     return init_probs, trans_probs

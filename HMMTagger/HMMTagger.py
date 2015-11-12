@@ -120,7 +120,7 @@ def main():
 
     # tag_seq_preds = getTestPreds(train_pos_list, train_ne_list, test_pos_list)
     #tag_seq_preds = getTestPreds(train_word_list, train_ne_list, test_word_list, low_frequency_probabilities, smooth='Good-Turing')
-    tag_seq_preds = getTestPreds(train_word_list, train_ne_list, test_word_list, low_frequency_probabilities, smooth=None, similarity_based=False, test_pos_list=test_pos_list)
+    tag_seq_preds = getTestPreds(train_word_list, train_ne_list, test_word_list, low_frequency_probabilities, smooth=None, similarity_based=True, test_pos_list=test_pos_list)
     formatted_preds = formatTestPreds(tag_seq_preds, test_idx_list)
     savePredictionsToCSV(formatted_preds)
 

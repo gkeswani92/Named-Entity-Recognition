@@ -177,4 +177,4 @@ def savePredictionsToCSV(low_frequency_ner):
 def getLowFrequencyWordProbabilities():
     return getTrainingData()
 
-getTrainingData()
+# getTrainingData()
