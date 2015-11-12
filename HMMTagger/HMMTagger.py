@@ -1,10 +1,11 @@
 __author__ = 'Jonathan Simon'
 
 from DataProcessing.LoadData import getTrainingData, getTestData
-from DataProcessing.Utilities import savePredictionsToCSV
+from DataProcessing.Utilities import savePredictionsToCSV, dir_path
 from GetHMMProbabilities import getEmissionProbabilities, getStateProbabilities
-from HandleLowFrequencyWords import getLowFrequencyWordProbabilities, findFeatureClass
+from HandleLowFrequencyWords import findFeatureClass
 import numpy as np
+import json
 
 def Viterbi(emission_probs, state_init_probs, state_trans_probs, test_subseq, low_frequency_probabilities, smooth, similarity_based, pos_subseq):
     '''
@@ -43,7 +44,6 @@ def Viterbi(emission_probs, state_init_probs, state_trans_probs, test_subseq, lo
                         temp_state_probs[prev_state] = prev_probs[prev_state] * state_trans_probs[prev_state][curr_state] * \
                                                         emission_probability
                     else:
-                        print "I'm here!"
                         feature_class = pos_subseq[emission_idx]
                         current_state = curr_state if '-' not in curr_state else curr_state.split('-')[1]
                         emission_probability = low_frequency_probabilities[feature_class][current_state]
@@ -76,7 +76,7 @@ def getTestPreds(train_obs_list, train_ne_list, test_obs_list, low_frequency_pro
     state_init_probs, state_trans_probs = getStateProbabilities(train_ne_list)
     pred_ne_list = []
     for i in xrange(len(test_obs_list)):
-        predicted_states = Viterbi(emission_probs, state_init_probs, state_trans_probs, test_obs_list[i], low_frequency_probabilities, smooth, similarity_based, test_pos_list)
+        predicted_states = Viterbi(emission_probs, state_init_probs, state_trans_probs, test_obs_list[i], low_frequency_probabilities, smooth, similarity_based, test_pos_list[i])
         pred_ne_list.append(predicted_states)
     return pred_ne_list
 
@@ -105,7 +105,7 @@ def formatTestPreds(preds, inds):
                     ne_end = inds[i][word_idx-1]
                     formatted_preds[ne_tag].append("{0}-{1}".format(ne_start, ne_end))
                     if preds[i][word_idx][0] == 'B':  # start of new named entity
-                        ne_start = word_idx
+                        ne_start = inds[i][word_idx]
                         ne_tag = preds[i][word_idx].split('-')[1]
                     else:  # outside of named entity
                         in_ne = False
@@ -114,12 +114,12 @@ def formatTestPreds(preds, inds):
 
 
 def main():
-    train_word_list, train_pos_list, train_ne_list = getTrainingData(HMM=True)
+    train_word_list, _, train_ne_list = getTrainingData(HMM=True)
     test_word_list, test_pos_list, test_idx_list = getTestData(HMM=True)
-    low_frequency_probabilities = getLowFrequencyWordProbabilities()
+    
+    feature_type = 'text_features'
+    low_frequency_probabilities = json.load(open(dir_path + 'Training_Test_Data/{0}'.format(feature_type)))
 
-    # tag_seq_preds = getTestPreds(train_pos_list, train_ne_list, test_pos_list)
-    #tag_seq_preds = getTestPreds(train_word_list, train_ne_list, test_word_list, low_frequency_probabilities, smooth='Good-Turing')
     tag_seq_preds = getTestPreds(train_word_list, train_ne_list, test_word_list, low_frequency_probabilities, smooth=None, similarity_based=True, test_pos_list=test_pos_list)
     formatted_preds = formatTestPreds(tag_seq_preds, test_idx_list)
     savePredictionsToCSV(formatted_preds)
