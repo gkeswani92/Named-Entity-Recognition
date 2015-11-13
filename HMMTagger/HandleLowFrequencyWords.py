@@ -4,10 +4,10 @@ Created on Nov 8, 2015
 @author: gaurav
 '''
 
-from DataProcessing.Utilities import loadFile, getDataFromFile, dir_path, training_file, pprint
+from DataProcessing.Utilities import loadFile, getDataFromFile, dir_path, training_file
 from collections import defaultdict
 from copy import deepcopy
-import csv
+import json
 
 def getTrainingData(text_features = False):
     '''
@@ -16,16 +16,24 @@ def getTrainingData(text_features = False):
     #Load the data present in the training file
     f = loadFile(dir_path + training_file)
     training_data = getDataFromFile(f)
-    context_ner, context_pos = parseTrainingData(training_data)
-    low_frequency_ner, low_frequency_pos = findLowFrequencyWord(context_ner, context_pos)
-    
+    token_ner, token_pos = parseTrainingData(training_data)
+    feature_type = ""
+
+    #Considering only words with count less than 3 for the similarity based classifier
     if text_features:
-        features = findFeaturesForText(low_frequency_ner)
+        low_frequency_token_ner = findLowFrequencyWord(token_ner)
+        features = findFeaturesForText(low_frequency_token_ner)
+        feature_type = "text_features"
+    
+    #Considering all words for the POS based classifier
     else:
-        features = findFeaturesForPOS(low_frequency_pos, low_frequency_ner)
-        
+        features = findFeaturesForPOS(token_pos, token_ner)
+        feature_type = "pos_features"
+    
+    #Finding the probabilities for the features
     feature_probabilities = findProbabilityForFeatures(features)
-    #pprint(feature_probabilities)
+    saveFeaturesToDisk(features, feature_type)
+    
     return feature_probabilities
     
 def parseTrainingData(training_data):
@@ -58,26 +66,25 @@ def parseTrainingData(training_data):
 
     return context_ner, context_pos
 
-def findLowFrequencyWord(context_ner, context_pos):
+def findLowFrequencyWord(context_ner):
     '''
         Only keeps the low frequency words i.e. words that have count 2 or less
         and that do not have the Named Entity tag O
     '''
     #Finding the low frequency context        
-    low_frequency_ner = {}
-    low_frequency_pos = {}
+    low_frequency_token_ner = {}
     
     for key, value in context_ner.iteritems():
-        #if len(value) < 3 and 'O' not in value:
-        #if len(value) < 3:
-
-        low_frequency_ner[key] = value
-        low_frequency_pos[key] = context_pos[key]
-    
-    return low_frequency_ner, low_frequency_pos
+        if len(value) < 3:
+            low_frequency_token_ner[key] = value
+        
+    return low_frequency_token_ner
 
 def findFeaturesForPOS(low_frequency_pos, low_frequency_ner):
-    
+    '''
+        Determine the distribution of the named entities under each part of speech
+        tag
+    '''
     probabilities = {"PER":0, "LOC":0, "ORG":0, "MISC":0, "O":0}
     features = {}
     
@@ -93,8 +100,7 @@ def findFeaturesForPOS(low_frequency_pos, low_frequency_ner):
                     features[pos][net.split('-')[1]] += 1
                 else:
                     features[pos][net] += 1
-     
-    pprint(features)
+    
     return features
         
 def findFeaturesForText(context_ner):
@@ -161,20 +167,20 @@ def findProbabilityForFeatures(features):
     
     return features
 
-def savePredictionsToCSV(low_frequency_ner):
+def saveFeaturesToDisk(features, feature_type):
     '''
         Saves the final test predictions to CSV format in the format needed
         for kaggle
     '''
-    f = open(dir_path + 'Training_Test_Data/low_frequency_analysis', "w")
-    writer = csv.writer(f)
-    
-    for key, value in low_frequency_ner.iteritems():
-        writer.writerows([[key, ' '.join(value)]])
-        
-    f.close()
+    print("Saving {0} to disk".format(feature_type))
+    f = open(dir_path + 'Training_Test_Data/{0}'.format(feature_type), "w")
+    json.dump(features, f)
+    f.close();
     
 def getLowFrequencyWordProbabilities():
+    '''
+        Caller method to get the features
+    '''
     return getTrainingData()
 
-# getTrainingData()
+#getTrainingData()
