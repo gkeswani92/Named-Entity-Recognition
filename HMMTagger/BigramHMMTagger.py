@@ -122,7 +122,7 @@ def getSmoothEmissionProbs(emission_probs):
     '''
     smoothed_emission_probs = deepcopy(emission_probs)
     for state in smoothed_emission_probs:
-        smoothed_emission_probs[state]["<UNK>"] = min(smoothed_emission_probs[state].values()) / 2 # state known, emission unknown
+        smoothed_emission_probs[state]["<UNK>"] = min(smoothed_emission_probs[state].values()) / 10 # state known, emission unknown
 
     return smoothed_emission_probs
 
@@ -136,7 +136,7 @@ def getSmoothTransitionProbs(state_trans_probs):
 
     # preceding bigram known, current state unknown
     for bigram in smoothed_state_trans_probs:
-        smoothed_state_trans_probs[bigram]["<UNK>"] = min(smoothed_state_trans_probs[bigram].values()) / 2
+        smoothed_state_trans_probs[bigram]["<UNK>"] = min(smoothed_state_trans_probs[bigram].values()) / 10
 
     # preceding bigram unknown, current state known
     for state in all_known_states:
@@ -144,7 +144,7 @@ def getSmoothTransitionProbs(state_trans_probs):
         for bigram in smoothed_state_trans_probs:
             if state in smoothed_state_trans_probs[bigram] and smoothed_state_trans_probs[bigram][state] < min_state_prob:
                 min_state_prob = smoothed_state_trans_probs[bigram][state]
-        smoothed_state_trans_probs["<UNK>"][state] = min_state_prob / 2
+        smoothed_state_trans_probs["<UNK>"][state] = min_state_prob / 10
 
     return smoothed_state_trans_probs
 
