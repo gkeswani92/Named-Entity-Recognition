@@ -86,15 +86,20 @@ def findLowFrequencyWord(context_ner):
 def findFeaturesForText(context_ner):
     
     features = {"upper-case":0, "digit": 0, "contains-digit": 0, "first-char-upper": 0, "lower-case": 0,"other":0}
-    state_features = {"PER":deepcopy(features), "LOC":deepcopy(features), "ORG":deepcopy(features), "MISC":deepcopy(features), "O":deepcopy(features)}
+    state_features = {"B-PER":deepcopy(features), 
+                      "I-PER":deepcopy(features), 
+                      "B-LOC":deepcopy(features),
+                      "I-LOC":deepcopy(features), 
+                      "B-ORG":deepcopy(features), 
+                      "I-ORG":deepcopy(features),
+                      "B-MISC":deepcopy(features),
+                      "I-MISC":deepcopy(features), 
+                      "O":deepcopy(features)}
 
     for key, values in context_ner.iteritems():
         feature_class = findFeatureClass(key)
         for net in values:
-            if '-' in net:
-                state_features[net.split('-')[1]][feature_class] += 1
-            else:
-                state_features[net][feature_class] += 1
+            state_features[net][feature_class] += 1
      
     return state_features
 
@@ -181,4 +186,4 @@ def findFeaturesForPOS(low_frequency_pos, low_frequency_ner):
     
     return features
 
-#getTrainingData()
+getTrainingData()
