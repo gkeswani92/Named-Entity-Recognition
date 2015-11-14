@@ -1,10 +1,12 @@
 __author__ = 'Jonathan Simon'
 
-from DataProcessing.LoadData import getTrainingData, getTestData
+from DataProcessing.LoadData import getTrainingData, getTestData, dir_path
 from DataProcessing.Utilities import savePredictionsToCSV
 from GetHMMProbabilities import getEmissionProbabilities, getBigramStateProbabilities
 import numpy as np
+import json
 from copy import deepcopy
+from HandleLowFrequencyWords import findFeatureClass
 
 def Viterbi(emission_probs, state_init_probs, state_trans_probs, test_subseq):
     '''
@@ -27,6 +29,65 @@ def Viterbi(emission_probs, state_init_probs, state_trans_probs, test_subseq):
             for prev_state in path_dict:
                 temp_state_probs[prev_state] = prev_probs[prev_state] * state_trans_probs[prev_state][curr_state] * \
                                                emission_probs[curr_state][emission]
+
+            max_idx = np.argmax(temp_state_probs.values())
+            max_prob = temp_state_probs.values()[max_idx]
+            max_state = temp_state_probs.keys()[max_idx]
+
+            curr_bigram = (max_state[1], curr_state)
+            curr_state_probs[curr_bigram] = max_prob
+            new_path_dict[curr_bigram] = path_dict[max_state] + [curr_state]
+
+        prev_probs = curr_state_probs.copy()
+        path_dict = new_path_dict.copy()
+
+    # Identify overall most probable path
+    overall_max_idx = np.argmax(prev_probs.values())
+    overall_max_state = prev_probs.keys()[overall_max_idx]
+
+    return path_dict[overall_max_state]
+
+
+def SimilarityViterbi(emission_probs, state_init_probs, state_trans_probs, test_subseq, low_frequency_probabilities, smooth):
+    '''
+    For now we're ignoring the <UNK> tokens that were inserted
+    If we lookup an emission that doesn't exist, it will have probability 0, since we're using a Counter
+    '''
+    # Initialize paths and probabilities
+    path_dict = dict((state, [state[1]]) for state in state_init_probs.keys())
+    prev_probs = {}
+    for state in state_init_probs.keys():
+        prev_probs[state] = state_init_probs[state] * emission_probs[state[1]][test_subseq[0]]
+
+    # Iterate over the sentence
+    all_states = set(state2 for state1 in state_trans_probs for state2 in state_trans_probs[state1])
+    all_states.remove("<UNK>")
+    for emission in test_subseq[1:]:
+        new_path_dict = {}
+        curr_state_probs = {}
+        for curr_state in all_states:
+            temp_state_probs = {}
+            for prev_state in path_dict:
+                if emission not in emission_probs[curr_state]:
+                    feature_class = findFeatureClass(emission)
+                    simple_curr_state = curr_state.split('-')[-1]
+                    emission_probability = low_frequency_probabilities[feature_class][simple_curr_state]
+                else:
+                    emission_probability = emission_probs[curr_state][emission]
+
+                if smooth:
+                    if prev_state not in state_trans_probs:
+                        this_trans_prob = state_trans_probs["<UNK>"][curr_state]
+                    elif curr_state not in state_trans_probs[prev_state]:
+                        this_trans_prob = state_trans_probs[prev_state]["<UNK>"]
+                    else:
+                        this_trans_prob = state_trans_probs[prev_state][curr_state]
+                else:
+                    this_trans_prob = state_trans_probs[prev_state][curr_state]
+
+                temp_state_probs[prev_state] = prev_probs[prev_state] * this_trans_prob * emission_probability
+
+
 
             max_idx = np.argmax(temp_state_probs.values())
             max_prob = temp_state_probs.values()[max_idx]
@@ -98,15 +159,28 @@ def SmoothViterbi(emission_probs, state_init_probs, state_trans_probs, test_subs
     return path_dict[overall_max_state]
 
 
-def getTestPreds(train_obs_list, train_ne_list, test_obs_list, smooth):
+def getTestPreds(train_obs_list, train_ne_list, test_obs_list, smooth, similarity):
     emission_probs = getEmissionProbabilities(train_obs_list, train_ne_list)
     state_init_probs, state_trans_probs = getBigramStateProbabilities(train_ne_list)
     pred_ne_list = []
-    if smooth:
+    if smooth and not similarity:
         smoothed_emission_probs = getSmoothEmissionProbs(emission_probs)
         smoothed_state_trans_probs = getSmoothTransitionProbs(state_trans_probs)
         for i in xrange(len(test_obs_list)):
             predicted_states = SmoothViterbi(smoothed_emission_probs, state_init_probs, smoothed_state_trans_probs, test_obs_list[i])
+            pred_ne_list.append(predicted_states)
+    elif similarity and not smooth:
+        feature_type = 'text_features'
+        low_frequency_probabilities = json.load(open(dir_path + 'Training_Test_Data/{0}'.format(feature_type)))
+        for i in xrange(len(test_obs_list)):
+            predicted_states = SimilarityViterbi(emission_probs, state_init_probs, state_trans_probs, test_obs_list[i], low_frequency_probabilities, smooth=False)
+            pred_ne_list.append(predicted_states)
+    elif smooth and similarity:
+        feature_type = 'text_features'
+        low_frequency_probabilities = json.load(open(dir_path + 'Training_Test_Data/{0}'.format(feature_type)))
+        smoothed_state_trans_probs = getSmoothTransitionProbs(state_trans_probs)
+        for i in xrange(len(test_obs_list)):
+            predicted_states = SimilarityViterbi(emission_probs, state_init_probs, smoothed_state_trans_probs, test_obs_list[i], low_frequency_probabilities, smooth=True)
             pred_ne_list.append(predicted_states)
     else:
         for i in xrange(len(test_obs_list)):
@@ -186,7 +260,8 @@ def main():
     test_word_list, test_pos_list, test_idx_list = getTestData(HMM=True)
 
     # tag_seq_preds = getTestPreds(train_pos_list, train_ne_list, test_pos_list, smooth=True)
-    tag_seq_preds = getTestPreds(train_word_list, train_ne_list, test_word_list, smooth=True)
+    # tag_seq_preds = getTestPreds(train_word_list, train_ne_list, test_word_list, smooth=True)
+    tag_seq_preds = getTestPreds(train_word_list, train_ne_list, test_word_list, smooth=True, similarity=True)
     formatted_preds = formatTestPreds(tag_seq_preds, test_idx_list)
     savePredictionsToCSV(formatted_preds)
 

@@ -9,7 +9,7 @@ from collections import defaultdict
 from copy import deepcopy
 import json
 
-def getTrainingData(text_features = False):
+def getTrainingData(text_features = True):
     '''
         Loads the training data from the appropriate directory
     '''
@@ -183,4 +183,4 @@ def getLowFrequencyWordProbabilities():
     '''
     return getTrainingData()
 
-#getTrainingData()
+# getTrainingData()
