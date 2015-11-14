@@ -4,7 +4,7 @@ Created on Nov 8, 2015
 @author: gaurav
 '''
 
-from DataProcessing.Utilities import loadFile, getDataFromFile, dir_path, training_file
+from DataProcessing.Utilities import loadFile, getDataFromFile, dir_path, training_file, pprint
 from collections import defaultdict
 from copy import deepcopy
 import json
@@ -17,23 +17,25 @@ def getTrainingData(text_features = True):
     f = loadFile(dir_path + training_file)
     training_data = getDataFromFile(f)
     token_ner, token_pos = parseTrainingData(training_data)
+    
     feature_type = ""
+    state_features = {}
 
     #Considering only words with count less than 3 for the similarity based classifier
     if text_features:
         low_frequency_token_ner = findLowFrequencyWord(token_ner)
-        features = findFeaturesForText(low_frequency_token_ner)
+        state_features = findFeaturesForText(low_frequency_token_ner)
         feature_type = "text_features"
     
     #Considering all words for the POS based classifier
     else:
-        features = findFeaturesForPOS(token_pos, token_ner)
+        state_features = findFeaturesForPOS(token_pos, token_ner)
         feature_type = "pos_features"
     
     #Finding the probabilities for the features
-    feature_probabilities = findProbabilityForFeatures(features)
-    saveFeaturesToDisk(features, feature_type)
-    
+    feature_probabilities = findProbabilityForFeatures(state_features)
+    saveFeaturesToDisk(feature_probabilities, feature_type)
+    pprint(feature_probabilities)
     return feature_probabilities
     
 def parseTrainingData(training_data):
@@ -75,54 +77,26 @@ def findLowFrequencyWord(context_ner):
     low_frequency_token_ner = {}
     
     for key, value in context_ner.iteritems():
-        if len(value) < 3:
-            low_frequency_token_ner[key] = value
+        #if len(value) < 5:
+        low_frequency_token_ner[key] = value
         
     return low_frequency_token_ner
 
-def findFeaturesForPOS(low_frequency_pos, low_frequency_ner):
-    '''
-        Determine the distribution of the named entities under each part of speech
-        tag
-    '''
-    probabilities = {"PER":0, "LOC":0, "ORG":0, "MISC":0, "O":0}
-    features = {}
-    
-    for key, value in low_frequency_pos.iteritems():
-        for pos in value:
-            if pos not in features:
-                features[pos] = deepcopy(probabilities)
-            
-            nets = low_frequency_ner[key]
-            
-            for net in nets:
-                if '-' in net:
-                    features[pos][net.split('-')[1]] += 1
-                else:
-                    features[pos][net] += 1
-    
-    return features
-        
+ 
 def findFeaturesForText(context_ner):
     
-    probabilities = {"PER":0, "LOC":0, "ORG":0, "MISC":0, "O":0}
-    features = {"upper-case": deepcopy(probabilities),
-                "digit": deepcopy(probabilities),
-                "contains-digit": deepcopy(probabilities),
-                "first-char-upper": deepcopy(probabilities),
-                "lower-case": deepcopy(probabilities),
-                "other":deepcopy(probabilities)
-                }
+    features = {"upper-case":0, "digit": 0, "contains-digit": 0, "first-char-upper": 0, "lower-case": 0,"other":0}
+    state_features = {"PER":deepcopy(features), "LOC":deepcopy(features), "ORG":deepcopy(features), "MISC":deepcopy(features), "O":deepcopy(features)}
 
     for key, values in context_ner.iteritems():
         feature_class = findFeatureClass(key)
         for net in values:
             if '-' in net:
-                features[feature_class][net.split('-')[1]] += 1
+                state_features[net.split('-')[1]][feature_class] += 1
             else:
-                features[feature_class][net] += 1
+                state_features[net][feature_class] += 1
      
-    return features
+    return state_features
 
 def findFeatureClass(token):
     '''
@@ -156,14 +130,15 @@ def findFeatureClass(token):
         
     return feature_class
           
+          
 def findProbabilityForFeatures(features):
     '''
         Finds the probabilities of every state for every feature class
     '''
-    for _, state_counts in features.iteritems():
-        total_count = sum(state_counts.values())
-        for key, value in state_counts.iteritems():
-            state_counts[key] = value * 1.0 / total_count;
+    for _, state_features in features.iteritems():
+        total_tokens = sum(state_features.values())
+        for key, value in state_features.iteritems():
+            state_features[key] = value * 1.0 / total_tokens;
     
     return features
 
@@ -183,4 +158,27 @@ def getLowFrequencyWordProbabilities():
     '''
     return getTrainingData()
 
-# getTrainingData()
+def findFeaturesForPOS(low_frequency_pos, low_frequency_ner):
+    '''
+        Determine the distribution of the named entities under each part of speech
+        tag
+    '''
+    probabilities = {"PER":0, "LOC":0, "ORG":0, "MISC":0, "O":0}
+    features = {}
+    
+    for key, value in low_frequency_pos.iteritems():
+        for pos in value:
+            if pos not in features:
+                features[pos] = deepcopy(probabilities)
+            
+            nets = low_frequency_ner[key]
+            
+            for net in nets:
+                if '-' in net:
+                    features[pos][net.split('-')[1]] += 1
+                else:
+                    features[pos][net] += 1
+    
+    return features
+
+#getTrainingData()

@@ -68,10 +68,12 @@ def SimilarityViterbi(emission_probs, state_init_probs, state_trans_probs, test_
         for curr_state in all_states:
             temp_state_probs = {}
             for prev_state in path_dict:
+                
+                #Emission is unseen. Finding probability based on feature class
                 if emission not in emission_probs[curr_state]:
                     feature_class = findFeatureClass(emission)
                     simple_curr_state = curr_state.split('-')[-1]
-                    emission_probability = low_frequency_probabilities[feature_class][simple_curr_state]
+                    emission_probability = low_frequency_probabilities[simple_curr_state][feature_class]
                 else:
                     emission_probability = emission_probs[curr_state][emission]
 
