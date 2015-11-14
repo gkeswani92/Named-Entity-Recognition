@@ -60,8 +60,8 @@ def main():
     # extra_pred_file = pred_dir+'predictions_smoothedWordBigramHMMTagger.csv'
     # core_pred_file = pred_dir+'predictions_smoothedWordBigramHMMTagger.csv'
     # extra_pred_file = pred_dir+'predictions_dynamicTagger.csv'
-    core_pred_file = pred_dir+'predictions_smoothedWordBigramHMMTagger10.csv'
-    extra_pred_file = pred_dir+'predictions_dynamicTagger.csv'
+    core_pred_file = pred_dir+'predictions_dynamicTagger.csv'
+    extra_pred_file = pred_dir+'predictions.csv'
 
     core_preds = loadPredictions(core_pred_file)
     extra_preds = loadPredictions(extra_pred_file)

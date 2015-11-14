@@ -72,8 +72,9 @@ def SimilarityViterbi(emission_probs, state_init_probs, state_trans_probs, test_
                 #Emission is unseen. Finding probability based on feature class
                 if emission not in emission_probs[curr_state]:
                     feature_class = findFeatureClass(emission)
-                    simple_curr_state = curr_state.split('-')[-1]
-                    emission_probability = low_frequency_probabilities[simple_curr_state][feature_class]
+                    # simple_curr_state = curr_state.split('-')[-1]
+                    # emission_probability = low_frequency_probabilities[simple_curr_state][feature_class]
+                    emission_probability = low_frequency_probabilities[curr_state][feature_class]
                 else:
                     emission_probability = emission_probs[curr_state][emission]
 
@@ -174,15 +175,17 @@ def getTestPreds(train_obs_list, train_ne_list, test_obs_list, smooth, similarit
     elif similarity and not smooth:
         feature_type = 'text_features'
         low_frequency_probabilities = json.load(open(dir_path + 'Training_Test_Data/{0}'.format(feature_type)))
+        reduced_similarity_probs = getReducedSimilarityProbs(low_frequency_probabilities, emission_probs)
         for i in xrange(len(test_obs_list)):
-            predicted_states = SimilarityViterbi(emission_probs, state_init_probs, state_trans_probs, test_obs_list[i], low_frequency_probabilities, smooth=False)
+            predicted_states = SimilarityViterbi(emission_probs, state_init_probs, state_trans_probs, test_obs_list[i], reduced_similarity_probs, smooth=False)
             pred_ne_list.append(predicted_states)
     elif smooth and similarity:
         feature_type = 'text_features'
         low_frequency_probabilities = json.load(open(dir_path + 'Training_Test_Data/{0}'.format(feature_type)))
+        reduced_similarity_probs = getReducedSimilarityProbs(low_frequency_probabilities, emission_probs)
         smoothed_state_trans_probs = getSmoothTransitionProbs(state_trans_probs)
         for i in xrange(len(test_obs_list)):
-            predicted_states = SimilarityViterbi(emission_probs, state_init_probs, smoothed_state_trans_probs, test_obs_list[i], low_frequency_probabilities, smooth=True)
+            predicted_states = SimilarityViterbi(emission_probs, state_init_probs, smoothed_state_trans_probs, test_obs_list[i], reduced_similarity_probs, smooth=True)
             pred_ne_list.append(predicted_states)
     else:
         for i in xrange(len(test_obs_list)):
@@ -191,6 +194,14 @@ def getTestPreds(train_obs_list, train_ne_list, test_obs_list, smooth, similarit
 
     return pred_ne_list
 
+
+def getReducedSimilarityProbs(similarity_probs, emission_probs):
+    reduced_similarity_probs = deepcopy(similarity_probs)
+    for state in reduced_similarity_probs:
+        state_scaling_val = min(emission_probs[state].values()) / 10
+        for similarity_class in reduced_similarity_probs[state]:
+            reduced_similarity_probs[state][similarity_class] = reduced_similarity_probs[state][similarity_class] * state_scaling_val
+    return reduced_similarity_probs
 
 def getSmoothEmissionProbs(emission_probs):
     '''
